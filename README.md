@@ -1,2 +1,2 @@
 # diagonal-neume-slicing
-A tool for splitting a neume into diagonal components based on diagonal projection
+A tool for splitting neumes into neume components based on diagonal projection.
