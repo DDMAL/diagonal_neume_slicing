@@ -1,5 +1,5 @@
 from gamera.core import init_gamera, Image, load_image
-
+from gamera import gamera_xml
 import numpy
 
 import sys
@@ -14,14 +14,14 @@ class ProjectionSplitter (object):
     # Given an image of a neume, should return
     # a list of separated neume components
 
-    def __init__(self):
+    def __init__(self, **kwargs):
 
         # projection smoothing
-        self.smoothing = 5              # (1, inf) how much convolution to apply
-        self.extrema_threshold = 0      # ignore extrema points < # pixels from last point
+        self.smoothing = kwargs['smoothing']                    # (1, inf) how much convolution to apply
+        self.extrema_threshold = kwargs['extrema_threshold']    # ignore extrema points < # pixels from last point
 
-        self.min_glyph_size = 40        # min number of x or y pixels for a glyph
-        self.max_recursive_cuts = 10    # max number of sub-cuts
+        self.min_glyph_size = kwargs['min_glyph_size']          # min number of x or y pixels for a glyph
+        self.max_recursive_cuts = kwargs['max_recursive_cuts']  # max number of sub-cuts
 
     ##########
     # Public
@@ -35,13 +35,13 @@ class ProjectionSplitter (object):
         if len(images) > 1 and rec < self.max_recursive_cuts:
             new_images = []
             for i, im in enumerate(images):
-                print 'recurse:', i
+                # print 'recurse:', i
                 new_images += self.recursive_run(im, rec + 1)
 
             return new_images
 
         else:
-            print 'end recursion'
+            # print 'end recursion'
             return images
 
     def _run(self, image):
@@ -89,7 +89,10 @@ class ProjectionSplitter (object):
 
         # find first and last non_0 value
         not_0 = list(i for i, x in enumerate(projection) if x != 0)
-        start_pos, end_pos = not_0[0], not_0[-1]
+        if not_0:
+            start_pos, end_pos = not_0[0], not_0[-1]
+        else:   # all 0s, so no extrema
+            return extrema
 
         # get maxima/minima
         for i, pxl in enumerate(projection[start_pos:]):
@@ -132,9 +135,10 @@ class ProjectionSplitter (object):
 
     def _smooth_extrema(self, extrema):
         nudge = 0
-        smoothed_extrema = [extrema[0]]
+        smoothed_extrema = extrema[:1]
 
         for i, e in enumerate(extrema[1:]):
+            # print e, smoothed_extrema, i, nudge
             dif = abs(e[1] - smoothed_extrema[i - nudge][1])
             if not dif < self.extrema_threshold:
                 smoothed_extrema.append(e)
@@ -192,7 +196,7 @@ class ProjectionSplitter (object):
     def _split_image(self, image, slice_x, slice_y):
         # if no slices, don't split image
         if not slice_x and not slice_y:
-            print 'single\n'
+            # print 'single\n'
             return [image]
 
         # if missing slice in one dimension, split other
@@ -249,22 +253,46 @@ class ProjectionSplitter (object):
 
 
 if __name__ == "__main__":
+    inImage, inXML = None, None
 
-    (inImage) = sys.argv[1]
-    image = load_image(inImage)
+    (in0) = sys.argv[1]
+    if '.png' in in0:
+        inImage = in0
+    elif '.xml' in in0:
+        inXML = in0
 
     # remove files already there so they dont get stacked up
-    files = glob.glob('./*.png')
-    for f in files:
+    filesPNG = glob.glob('./*.png')
+    filesXML = glob.glob('./*.xml')
+    for f in filesPNG + filesXML:
         os.remove(f)
 
-    # init job
-    splitter = ProjectionSplitter()
-    # run job
-    results = splitter.recursive_run(image, 0)
+    kwargs = {
+        'smoothing': 5,
+        'extrema_threshold': 0,
+        'min_glyph_size': 40,
+        'max_recursive_cuts': 10,
+    }
 
-    # save all as images
-    for g in results:
-        g.save_PNG(str(datetime.datetime.now().date()) + '_' + str(datetime.datetime.now().time()).replace(':', '.') + '.png')
+    ps = ProjectionSplitter(**kwargs)
+
+    if inImage:
+
+        image = load_image(inImage)
+
+        # run job
+        results = ps.recursive_run(image, 0)
+        # save all as images
+        for g in results:
+            g.save_PNG(str(datetime.datetime.now().date()) + '_' + str(datetime.datetime.now().time()).replace(':', '.') + '.png')
+
+    elif inXML:
+        glyphs = gamera_xml.glyphs_from_xml(inXML)
+
+        output_glyphs = []
+        for g in glyphs:
+            output_glyphs += ps.recursive_run(g, 0)
+
+        gamera_xml.glyphs_to_xml('output.xml', output_glyphs)
 
     print('do stuff')
