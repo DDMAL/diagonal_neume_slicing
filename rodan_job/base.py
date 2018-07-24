@@ -80,7 +80,8 @@ class DiagonalNeumeSlicing(RodanTask):
             output_glyphs += ps.recursive_run(g, 0)
 
         outfile_path = outputs['GameraXML - Connected Components'][0]['resource_path']
-        with open(outfile_path, "w") as outfile:
-            gamera_xml.glyphs_to_xml(outfile, output_glyphs)
+        output_xml = gamera_xml.WriteXMLFile(glyphs=output_glyphs,
+                                             with_features=True)
+        output_xml.write_filename(outfile_path)
 
         return True
