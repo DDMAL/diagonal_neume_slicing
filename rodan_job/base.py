@@ -32,7 +32,7 @@ class DiagonalNeumeSlicing(RodanTask):
             'Minimum Glyph Size': {
                 'type': 'integer',
                 'default': 40,
-                'minimum': 5,
+                'minimum': 0,
                 'maximum': 1000,
                 'description': 'Discard post-splitting glyphs with an x or y dimension less than the Minimum Glyph Size.'
             },
