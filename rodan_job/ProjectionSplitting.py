@@ -262,8 +262,8 @@ if __name__ == "__main__":
         inXML = in0
 
     # remove files already there so they dont get stacked up
-    filesPNG = glob.glob('./*.png')
-    filesXML = glob.glob('./*.xml')
+    filesPNG = glob.glob('./output/*.png')
+    filesXML = glob.glob('./output/*.xml')
     for f in filesPNG + filesXML:
         os.remove(f)
 
@@ -284,7 +284,8 @@ if __name__ == "__main__":
         results = ps.recursive_run(image, 0)
         # save all as images
         for g in results:
-            g.save_PNG(str(datetime.datetime.now().date()) + '_' + str(datetime.datetime.now().time()).replace(':', '.') + '.png')
+            g.save_PNG('./output/' + str(datetime.datetime.now().date()) + '_' +
+                       str(datetime.datetime.now().time()).replace(':', '.') + '.png')
 
     elif inXML:
         glyphs = gamera_xml.glyphs_from_xml(inXML)
@@ -293,6 +294,6 @@ if __name__ == "__main__":
         for g in glyphs:
             output_glyphs += ps.recursive_run(g, 0)
 
-        gamera_xml.glyphs_to_xml('output.xml', output_glyphs)
+        gamera_xml.glyphs_to_xml('./output/output.xml', output_glyphs)
 
     print('do stuff')
