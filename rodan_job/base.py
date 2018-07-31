@@ -71,6 +71,11 @@ class DiagonalNeumeSlicing(RodanTask):
             'extrema_threshold': 0,
             'min_glyph_size': settings['Minimum Glyph Size'],
             'max_recursive_cuts': settings['Maximum Recursive Cuts'],
+
+            'min_projection_segments': 5,
+            'low_projection_threshold': 15,
+            'min_slice_spread': 30,
+            'min_slice_spread_rel': 0.5,
         }
 
         ps = ProjectionSplitter(**kwargs)
