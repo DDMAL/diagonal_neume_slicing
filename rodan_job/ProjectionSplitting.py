@@ -335,14 +335,8 @@ if __name__ == "__main__":
         output_glyphs = ps.recursive_run(image, 0)
 
         # save all as images
-<<<<<<< HEAD
-        for g in results:
-            g.save_PNG('./output/' + str(datetime.datetime.now().date()) + '_' +
-                       str(datetime.datetime.now().time()).replace(':', '.') + '.png')
-=======
         for i, g in enumerate(output_glyphs):
             g.save_PNG('./output/piece' + str(i + 1) + '.png')
->>>>>>> rotating-line-splitting
 
     elif inXML:
 
