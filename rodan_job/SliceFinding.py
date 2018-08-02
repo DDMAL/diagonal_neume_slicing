@@ -16,7 +16,6 @@ class SliceFinder (object):
         self.min_proj_seg_length = kwargs['min_projection_segments']    # should be relational
 
         self.low_projection_threshold = kwargs['low_projection_threshold']
-        self.min_slice_spread = kwargs['min_slice_spread']
 
         self.min_slice_spread_rel = kwargs['min_slice_spread_rel']
 
@@ -25,10 +24,53 @@ class SliceFinder (object):
         self.print_projection_array = kwargs['print_projection_array']
         self.plot_projection_array = kwargs['plot_projection_array']
 
+        self.x_max_proj = None
+        self.y_max_proj = None
+
+    ##########
+    # Public
+    ##########
+
+    def get_projections(self, image):
+        col_projs, row_projs = self._get_diagonal_projection_arrays(image)
+        return col_projs, row_projs
+
     def get_slices(self, image):
         col_projs, row_projs = self._get_diagonal_projection_arrays(image)
-        col_slices, row_slices = self._get_slices(col_projs), self._get_slices(row_projs)
+        col_slices, row_slices = self._get_slices(col_projs, 'x'), self._get_slices(row_projs, 'y')
         return col_slices, row_slices
+
+    def get_extrema(self, image):
+        col_projs, row_projs = self._get_diagonal_projection_arrays(image)
+        col_extrema, row_extrema = self._get_extrema(col_projs), self._get_extrema(row_projs)
+        return col_extrema, row_extrema
+
+    def set_max_projs(self, image):
+        col_extrema, row_extrema = self.get_extrema(image)
+
+        ui_x_extrema = list(x[1] for x in col_extrema[1])
+        ui_y_extrema = list(y[1] for y in row_extrema[1])
+
+        self.x_max_proj = max(ui_x_extrema) if ui_x_extrema else 0
+        self.y_max_proj = max(ui_y_extrema) if ui_y_extrema else 0
+
+    ##################
+    # Public Helpers
+    ##################
+
+    def print_projections(self, projection):
+        self._print_projection_array(projection)
+
+    def flatten_extrema(self, extrema):
+        output = []
+        i = 0
+        while i < len(extrema[0]):
+            output.append(extrema[1][i])
+            output.append(extrema[0][i])
+            i += 1
+        output.append(extrema[1][-1])
+
+        return output
 
     ###############
     # Projections
@@ -126,15 +168,14 @@ class SliceFinder (object):
     # Slices
     ##########
 
-    def _get_slices(self, proj_arrays):
+    def _get_slices(self, proj_arrays, dim):
         extrema = self._get_extrema(proj_arrays)
-        slices = self._find_slices(extrema)
+        slices = self._find_slices(extrema, dim)
         return slices
 
     def _get_extrema(self, arrays):
         nudge = -1
         minima, maxima = [], []
-
         for i, a in enumerate(arrays[:-1]):
 
             if i % 2 == 0:
@@ -146,15 +187,22 @@ class SliceFinder (object):
 
         return minima, maxima
 
-    def _find_slices(self, (minima, maxima)):
+    def _find_slices(self, (minima, maxima), dim):
         slices = []
+        rel_max = self.x_max_proj if dim is 'x' else self.y_max_proj
 
         for i, m in enumerate(maxima[:-1]):
             peak_L, peak_R = maxima[i], maxima[i + 1]
             valley = minima[i]
 
             spread = min(peak_L[1], peak_R[1]) - valley[1]
-            slices.append((valley[0], spread))
+
+            print spread, self.min_slice_spread_rel * (self.x_max_proj if dim is 'x' else self.y_max_proj)
+            # print valley, self.low_projection_threshold * rel_max
+
+            if (spread > self.min_slice_spread_rel * rel_max)and \
+                    (valley[1] < self.low_projection_threshold * rel_max):
+                slices.append((valley[0], spread))
 
         return slices
 

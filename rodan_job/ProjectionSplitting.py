@@ -1,9 +1,7 @@
-from gamera.core import init_gamera, Image, load_image, RGBPixel
+from gamera.core import init_gamera, load_image, RGBPixel
 from gamera import gamera_xml
 
 import numpy as np
-import copy
-import matplotlib.pyplot as plt
 
 from SliceFinding import SliceFinder
 
@@ -23,26 +21,27 @@ class ProjectionSplitter (object):
 
         self.kwargs = kwargs
 
-        # projection smoothing
-        self.smoothing = kwargs['smoothing']                    # (1, inf) how much convolution to apply
-        self.extrema_threshold = kwargs['extrema_threshold']    # ignore extrema points < # pixels from last point
+        # Things to use later
+        self.image = None
+        self.analysis_image = None
+        self.sf = None
 
         self.min_glyph_size = kwargs['min_glyph_size']          # min number of x or y pixels for a glyph
         self.max_recursive_cuts = kwargs['max_recursive_cuts']  # max number of sub-cuts
 
-        self.min_proj_seg_length = kwargs['min_projection_segments']    # should be relational
-
-        self.low_projection_threshold = kwargs['low_projection_threshold']
-        self.min_slice_spread = kwargs['min_slice_spread']
-
-        self.min_slice_spread_rel = kwargs['min_slice_spread_rel']
-
         self.rotation = kwargs['rotation']
 
+        # analysis image processing
         self.kfill_amount = 3
 
-        self.prefer_multi_cuts = True   # if a projection dimension has more slices than the other, cut that one first
+        # if one dimension has more slices than the other, cut that one first
+        self.prefer_multi_cuts = kwargs['prefer_multi_cuts']
+        self.prefer_x = kwargs['prefer_x']
         self.multi_cut_min = 0
+
+        # DEBUG
+        self.save_cuts = kwargs['save_cuts']
+        self.dont_cut = False
 
         self.cut_number = 0
         self.recursion_number = 0
@@ -51,7 +50,20 @@ class ProjectionSplitter (object):
     # Public
     ##########
 
-    def recursive_run(self, image, rec):
+    def run(self, image):
+        # run once
+        image = self._preprocess_image(image)
+        analysis_image = self._preprocess_analysis_image(image)
+
+        sf = SliceFinder(**self.kwargs)
+        sf.set_max_projs(analysis_image)
+        self.sf = sf
+
+        return self._recursive_run(image, 0)
+
+    def _recursive_run(self, image, rec):
+        # run recursively
+
         # process image
         images = self._run(image)
 
@@ -60,7 +72,7 @@ class ProjectionSplitter (object):
             new_images = []
             for i, im in enumerate(images):
                 # print 'recurse:', i
-                new_images += self.recursive_run(im, rec + 1)
+                new_images += self._recursive_run(im, rec + 1)
 
             return new_images
 
@@ -69,18 +81,13 @@ class ProjectionSplitter (object):
             return images
 
     def _run(self, image):
-        image = self._preprocess_image(image)
+        # run each recursion
         analysis_image = self._preprocess_analysis_image(image)
 
-        sf = SliceFinder(**self.kwargs)
-        x_slices, y_slices = sf.get_slices(analysis_image)
+        x_slices, y_slices = self.sf.get_slices(analysis_image)
         best_slice = self._get_best_slice(x_slices, y_slices)
 
-        # col_arrays, row_arrays = self._get_diagonal_projection_arrays(analysis_image)
-        # x_slice, y_slice = self._get_slices(col_arrays, row_arrays)
-
         images = self._split_image(image, best_slice)
-
         images = self._postprocess_images(images)
         # if images:
         #     print images
@@ -102,10 +109,32 @@ class ProjectionSplitter (object):
             elif len(y_slices) > len(x_slices) + self.multi_cut_min:
                 return (best_y_slice, 'y')
 
-        if best_y_slice is None or best_x_slice[1] > best_y_slice[1]:
-            return (best_x_slice, 'x')
+        if self.prefer_x:
+            if best_x_slice:
+                return (best_x_slice, 'x')
+
+        if best_x_slice or best_y_slice:
+
+            if not best_y_slice:
+                print 'No y\tx:', best_x_slice
+                return (best_x_slice, 'x')
+
+            elif not best_x_slice:
+                print 'No x\ty:', best_y_slice
+                return (best_y_slice, 'y')
+
+            elif best_x_slice > best_y_slice:
+                return (best_x_slice, 'x')
+
+            elif best_x_slice < best_y_slice:
+                return (best_y_slice, 'y')
+
+                # FIX THIS
+
         else:
-            return (best_y_slice, 'y')
+            return None
+
+        print 'test'
 
     def _best_slice(self, slices):
         best_slice = None
@@ -121,10 +150,14 @@ class ProjectionSplitter (object):
 
     def _preprocess_image(self, image):
         image = self._to_onebit(image)
+        # image = image.kfill_modified(self.kfill_amount)
+
+        # image = image.outline(0)
 
         return image
 
     def _preprocess_analysis_image(self, image):
+        image = image.dilate()
         # image = image.to_rgb().simple_sharpen(1.0).to_onebit()
         # image = image.kfill_modified(self.kfill_amount)
         # image = image.convex_hull_as_image(True)
@@ -132,7 +165,7 @@ class ProjectionSplitter (object):
 
         return image
 
-    def _split_image(self, image, (best_slice, dim)):
+    def _split_image(self, image, best_slice):
 
         # if no slice, don't split image
         if not best_slice:
@@ -140,7 +173,7 @@ class ProjectionSplitter (object):
             fix_bb = False
 
         else:
-            splits = self._split(image, best_slice[0], dim)
+            splits = self._split(image, best_slice[0][0], best_slice[1])
 
         return splits
 
@@ -199,11 +232,13 @@ class ProjectionSplitter (object):
         cut_image.draw_line(draw_p1, draw_p2, RGBPixel(0, 0, 0), 3)     # cut glyph with white line
 
         # show cuts
-        rgb = image.to_rgb()
-        rgb.draw_line(draw_p1, draw_p2, RGBPixel(255, 0, 0), 1)
-        rgb.save_PNG('./output/cut_' + str(self.cut_number + 1) + '.png')
+        if self.save_cuts:
+            rgb = image.to_rgb()
+            rgb.draw_line(draw_p1, draw_p2, RGBPixel(255, 0, 0), 1)
+            rgb.save_PNG('./output/cut_' + str(self.cut_number + 1) + '.png')
 
-        # return [cut_image]
+        if self.dont_cut:
+            return [cut_image]
 
         splits = [x.image_copy() for x in cut_image.cc_analysis()]
 
@@ -303,20 +338,27 @@ if __name__ == "__main__":
         os.remove(f)
 
     kwargs = {
-        'smoothing': 6,
+        'smoothing': 1,
         'extrema_threshold': 0,
         'min_glyph_size': 20,
         'max_recursive_cuts': 50,
         'rotation': 45,
 
-        'min_projection_segments': 15,       # ++ less likely to cut ligs
-        'low_projection_threshold': 0,     # FORCE a cut if valley under a certain value
+
+        # will it cut?
+        'min_slice_spread_rel': 0.2,
         'min_slice_spread': 50,             # minimum spread for a cut
-        'min_slice_spread_rel': 0.5,
+        'min_projection_segments': 5,       # ++ less likely to cut ligs
+        'low_projection_threshold': 1,     # FORCE a cut if valley under a certain value
+
+        'prefer_multi_cuts': False,
+        'prefer_x': True,
+
 
         # Debug Options
-        'print_projection_array': True,
+        'print_projection_array': False,
         'plot_projection_array': False,  # script only
+        'save_cuts': True,
     }
 
     ps = ProjectionSplitter(**kwargs)
@@ -328,11 +370,11 @@ if __name__ == "__main__":
         cc_images = image.cc_analysis()
         cc_images = ps._filter_tiny_images(cc_images)
 
-        # output_glyphs = []
-        # for g in cc_images:
-        #     output_glyphs += ps.recursive_run(g, 0)
+        output_glyphs = []
+        for g in cc_images:
+            output_glyphs += ps.run(g)
 
-        output_glyphs = ps.recursive_run(image, 0)
+        # output_glyphs = ps.run(image)
 
         # save all as images
         for i, g in enumerate(output_glyphs):
@@ -342,7 +384,7 @@ if __name__ == "__main__":
 
         output_glyphs = []
         for g in glyphs:
-            output_glyphs += ps.recursive_run(g, 0)
+            output_glyphs += ps.run(g)
 
         gamera_xml.glyphs_to_xml('./output/output.xml', output_glyphs)
 
