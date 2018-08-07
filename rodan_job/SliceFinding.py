@@ -11,7 +11,6 @@ class SliceFinder (object):
     def __init__(self, **kwargs):
         # projection smoothing
         self.smoothing = kwargs['smoothing']                    # (1, inf) how much convolution to apply
-        self.extrema_threshold = kwargs['extrema_threshold']    # ignore extrema points < # pixels from last point
 
         self.min_proj_seg_length = kwargs['min_projection_segments']    # should be relational
 

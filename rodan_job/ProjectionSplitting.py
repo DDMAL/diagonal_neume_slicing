@@ -339,17 +339,15 @@ if __name__ == "__main__":
 
     kwargs = {
         'smoothing': 1,
-        'extrema_threshold': 0,
         'min_glyph_size': 20,
         'max_recursive_cuts': 50,
         'rotation': 45,
 
 
         # will it cut?
-        'min_slice_spread_rel': 0.2,
-        'min_slice_spread': 50,             # minimum spread for a cut
-        'min_projection_segments': 5,       # ++ less likely to cut ligs
-        'low_projection_threshold': 1,     # FORCE a cut if valley under a certain value
+        'min_slice_spread_rel': 0.2,       # minimum spread for a cut
+        'min_projection_segments': 4,       # ++ less likely to cut ligs
+        'low_projection_threshold': 0.5,     # allows a cut if valley under a certain value
 
         'prefer_multi_cuts': False,
         'prefer_x': True,
