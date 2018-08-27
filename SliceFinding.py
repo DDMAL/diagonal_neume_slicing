@@ -196,7 +196,7 @@ class SliceFinder (object):
 
             spread = min(peak_L[1], peak_R[1]) - valley[1]
 
-            print spread, self.min_slice_spread_rel * (self.x_max_proj if dim is 'x' else self.y_max_proj)
+            # print spread, self.min_slice_spread_rel * (self.x_max_proj if dim is 'x' else self.y_max_proj)
             # print valley, self.low_projection_threshold * rel_max
 
             if (spread > self.min_slice_spread_rel * rel_max)and \

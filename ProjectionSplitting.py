@@ -35,8 +35,10 @@ class ProjectionSplitter (object):
         self.kfill_amount = 3
 
         # if one dimension has more slices than the other, cut that one first
-        self.prefer_multi_cuts = kwargs['prefer_multi_cuts']
-        self.prefer_x = kwargs['prefer_x']
+        self.prefer_multi_cuts = True if kwargs['slice_prioritization'] == 'Multi-Cut' else False
+        self.prefer_x = True if kwargs['slice_prioritization'] == 'Vertical' else False
+        self.prefer_y = True if kwargs['slice_prioritization'] == 'Horizontal' else False
+
         self.multi_cut_min = 0
 
         # DEBUG
@@ -112,15 +114,18 @@ class ProjectionSplitter (object):
         if self.prefer_x:
             if best_x_slice:
                 return (best_x_slice, 'x')
+        elif self.prefer_y:
+            if best_y_slice:
+                return (best_y_slice, 'y')
 
         if best_x_slice or best_y_slice:
 
             if not best_y_slice:
-                print 'No y\tx:', best_x_slice
+                # print 'No y\tx:', best_x_slice
                 return (best_x_slice, 'x')
 
             elif not best_x_slice:
-                print 'No x\ty:', best_y_slice
+                # print 'No x\ty:', best_y_slice
                 return (best_y_slice, 'y')
 
             elif best_x_slice > best_y_slice:
@@ -134,7 +139,7 @@ class ProjectionSplitter (object):
         else:
             return None
 
-        print 'test'
+        # print 'test'
 
     def _best_slice(self, slices):
         best_slice = None
@@ -349,9 +354,7 @@ if __name__ == "__main__":
         'min_projection_segments': 4,       # ++ less likely to cut ligs
         'low_projection_threshold': 0.5,     # allows a cut if valley under a certain value
 
-        'prefer_multi_cuts': False,
-        'prefer_x': True,
-
+        'slice_prioritization': 'Vertical',
 
         # Debug Options
         'print_projection_array': False,
@@ -386,4 +389,4 @@ if __name__ == "__main__":
 
         gamera_xml.glyphs_to_xml('./output/output.xml', output_glyphs)
 
-    print('do stuff')
+    # print('do stuff')
