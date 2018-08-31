@@ -41,6 +41,8 @@ class ProjectionSplitter (object):
 
         self.multi_cut_min = 0
 
+        self.check_axis = kwargs['check_axis']
+
         # DEBUG
         self.save_cuts = kwargs['save_cuts']
         self.dont_cut = False
@@ -85,11 +87,17 @@ class ProjectionSplitter (object):
     def _run(self, image):
         # run each recursion
         analysis_image = self._preprocess_analysis_image(image)
+        best_slice_rot = self._get_best_slice(self.sf.get_slices(analysis_image, self.rotation))
 
-        x_slices, y_slices = self.sf.get_slices(analysis_image)
-        best_slice = self._get_best_slice(x_slices, y_slices)
+        if self.check_axis:
+            best_slice_str = self._get_best_slice(self.sf.get_slices(analysis_image, 0))
+            best_slice, rotation = self._get_best_rotation(best_slice_rot, self.rotation, best_slice_str, 0)
 
-        images = self._split_image(image, best_slice)
+        else:
+            best_slice = best_slice_rot
+            rotation = self.rotation
+
+        images = self._split_image(image, best_slice, rotation)
         images = self._postprocess_images(images)
         # if images:
         #     print images
@@ -100,7 +108,25 @@ class ProjectionSplitter (object):
     # Best Slices
     ###############
 
-    def _get_best_slice(self, x_slices, y_slices):
+    def _get_best_rotation(self, slice1, rot1, slice2, rot2):
+
+        print rot1, slice1, rot2, slice2
+
+        if not slice1:
+            if not slice2:
+                return (None, 0)
+            else:
+                return (slice2, rot2)
+        elif not slice2:
+            return (slice1, rot1)
+
+        elif slice2[0][1] > slice1[0][1]:
+            return (slice2, rot2)
+
+        else:
+            return (slice1, rot1)
+
+    def _get_best_slice(self, (x_slices, y_slices)):
         best_x_slice = self._best_slice(x_slices)
         best_y_slice = self._best_slice(y_slices)
 
@@ -170,7 +196,7 @@ class ProjectionSplitter (object):
 
         return image
 
-    def _split_image(self, image, best_slice):
+    def _split_image(self, image, best_slice, rotation):
 
         # if no slice, don't split image
         if not best_slice:
@@ -178,12 +204,12 @@ class ProjectionSplitter (object):
             fix_bb = False
 
         else:
-            splits = self._split(image, best_slice[0][0], best_slice[1])
+            splits = self._split(image, best_slice[0][0], best_slice[1], rotation)
 
         return splits
 
-    def _split(self, image, pos, dim):
-        theta = self.rotation
+    def _split(self, image, pos, dim, rotation):
+        theta = rotation
 
         # image properties
         cols, rows = image.ncols, image.nrows
@@ -326,7 +352,7 @@ class ProjectionSplitter (object):
 
 
 if __name__ == "__main__":
-    inImage, inXML = None, None
+    inImage, inXML, outputDIR = None, None, None
 
     (in0) = sys.argv[1]
     if '.png' in in0:
@@ -348,19 +374,40 @@ if __name__ == "__main__":
         'max_recursive_cuts': 50,
         'rotation': 45,
 
-
         # will it cut?
         'min_slice_spread_rel': 0.2,       # minimum spread for a cut
         'min_projection_segments': 4,       # ++ less likely to cut ligs
         'low_projection_threshold': 0.5,     # allows a cut if valley under a certain value
 
         'slice_prioritization': 'Vertical',
+        'check_axis': False,
 
         # Debug Options
         'print_projection_array': False,
         'plot_projection_array': False,  # script only
         'save_cuts': True,
     }
+
+    # # for new manuscript
+    # kwargs = {
+    #     'smoothing': 1,
+    #     'min_glyph_size': 20,
+    #     'max_recursive_cuts': 50,
+    #     'rotation': 45,
+
+    #     # will it cut?
+    #     'min_slice_spread_rel': 0.1,       # minimum spread for a cut
+    #     'min_projection_segments': 4,       # ++ less likely to cut ligs
+    #     'low_projection_threshold': 0.5,     # allows a cut if valley under a certain value
+
+    #     'slice_prioritization': 'Vertical',
+    #     'check_axis': False,
+
+    #     # Debug Options
+    #     'print_projection_array': False,
+    #     'plot_projection_array': False,  # script only
+    #     'save_cuts': True,
+    # }
 
     ps = ProjectionSplitter(**kwargs)
 

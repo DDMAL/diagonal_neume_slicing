@@ -20,7 +20,7 @@ class DiagonalNeumeSlicing(RodanTask):
     settings = {
         'title': 'Settings',
         'type': 'object',
-        'required': ['Smoothing', 'Minimum Glyph Size', 'Maximum Recursive Cuts', 'Angle', 'Minimum Slice Spread', 'Low Valley Threshold', 'Minimum Segment Length', 'Prioritize X-slices'],
+        'required': ['Smoothing', 'Minimum Glyph Size', 'Maximum Recursive Cuts', 'Angle', 'Minimum Slice Spread', 'Low Valley Threshold', 'Minimum Segment Length', 'Slice Prioritization'],
         'properties': {
             'Smoothing': {
                 'type': 'integer',
@@ -118,6 +118,9 @@ class DiagonalNeumeSlicing(RodanTask):
             'prefer_multi_cuts': True if settings['Slice Prioritization'] == 'Multi-Cut' else False,
             'prefer_x': True if settings['Slice Prioritization'] == 'Horizontal' else False,
             'prefer_y': True if settings['Slice Prioritization'] == 'Vertical' else False,
+
+            # Try rotated AND non-rotated projections
+            'check_axis': False,
 
             # Debug Options
             'print_projection_array': False,
