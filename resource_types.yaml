@@ -1,5 +1,5 @@
 - mimetype: application/gamera+xml
-  description: Gamera XML
+  description: Gamera XML file
   extension: xml
 - mimetype: image/rgb+png
   description: RGB PNG image
