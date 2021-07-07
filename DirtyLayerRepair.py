@@ -86,4 +86,4 @@ if __name__ == "__main__":
         dlr = DirtyLayerRepairman(**kwargs)
         image = dlr.run(base, dirty)
 
-        image.save_PNG('./output/extra_neumes.png')
+        image.save_PNG('./output/clean_neumes.png')

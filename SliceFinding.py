@@ -18,10 +18,10 @@ class SliceFinder (object):
 
         self.min_slice_spread_rel = kwargs['min_slice_spread_rel']
 
-        self.rotation = kwargs['rotation']
-
         self.print_projection_array = kwargs['print_projection_array']
         self.plot_projection_array = kwargs['plot_projection_array']
+
+        self.rotation = kwargs['rotation']
 
         self.x_max_proj = None
         self.y_max_proj = None
@@ -30,22 +30,22 @@ class SliceFinder (object):
     # Public
     ##########
 
-    def get_projections(self, image):
-        col_projs, row_projs = self._get_diagonal_projection_arrays(image)
+    def get_projections(self, image, rotation):
+        col_projs, row_projs = self._get_diagonal_projection_arrays(image, rotation)
         return col_projs, row_projs
 
-    def get_slices(self, image):
-        col_projs, row_projs = self._get_diagonal_projection_arrays(image)
+    def get_slices(self, image, rotation):
+        col_projs, row_projs = self._get_diagonal_projection_arrays(image, rotation)
         col_slices, row_slices = self._get_slices(col_projs, 'x'), self._get_slices(row_projs, 'y')
         return col_slices, row_slices
 
-    def get_extrema(self, image):
-        col_projs, row_projs = self._get_diagonal_projection_arrays(image)
+    def get_extrema(self, image, rotation):
+        col_projs, row_projs = self._get_diagonal_projection_arrays(image, rotation)
         col_extrema, row_extrema = self._get_extrema(col_projs), self._get_extrema(row_projs)
         return col_extrema, row_extrema
 
     def set_max_projs(self, image):
-        col_extrema, row_extrema = self.get_extrema(image)
+        col_extrema, row_extrema = self.get_extrema(image, self.rotation)
 
         ui_x_extrema = list(x[1] for x in col_extrema[1])
         ui_y_extrema = list(y[1] for y in row_extrema[1])
@@ -75,11 +75,11 @@ class SliceFinder (object):
     # Projections
     ###############
 
-    def _get_diagonal_projection_arrays(self, image):
+    def _get_diagonal_projection_arrays(self, image, rotation):
         # returns an x and y array of diagonal projections
         # separated by segment (0s, ascending, descending)
 
-        col_projs, row_projs = self._get_diagonal_projections(image)
+        col_projs, row_projs = self._get_diagonal_projections(image, rotation)
 
         col_projs = self._smooth_projection(col_projs)
         row_projs = self._smooth_projection(row_projs)
@@ -196,7 +196,7 @@ class SliceFinder (object):
 
             spread = min(peak_L[1], peak_R[1]) - valley[1]
 
-            print spread, self.min_slice_spread_rel * (self.x_max_proj if dim is 'x' else self.y_max_proj)
+            # print spread, self.min_slice_spread_rel * (self.x_max_proj if dim is 'x' else self.y_max_proj)
             # print valley, self.low_projection_threshold * rel_max
 
             if (spread > self.min_slice_spread_rel * rel_max)and \
@@ -209,8 +209,8 @@ class SliceFinder (object):
     # Image Analysis
     ##################
 
-    def _get_diagonal_projections(self, image):
-        d_image = self._rotate_image(image, self.rotation)
+    def _get_diagonal_projections(self, image, rotation):
+        d_image = self._rotate_image(image, rotation)
         projections = list(d_image.projection_cols()), list(d_image.projection_rows())
         return projections
 

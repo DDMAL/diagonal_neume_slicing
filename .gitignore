@@ -104,3 +104,4 @@ venv.bak/
 .mypy_cache/
 *.png
 *.xml
+.DS_Store

@@ -20,20 +20,20 @@ class DiagonalNeumeSlicing(RodanTask):
     settings = {
         'title': 'Settings',
         'type': 'object',
-        'required': ['Smoothing', 'Minimum Glyph Size', 'Maximum Recursive Cuts', 'Angle', 'Minimum Slice Spread', 'Low Valley Threshold', 'Minimum Segment Length', 'Prioritize X-slices'],
+        'required': ['Smoothing', 'Minimum Glyph Size', 'Maximum Recursive Cuts', 'Angle', 'Minimum Slice Spread', 'Low Valley Threshold', 'Minimum Segment Length', 'Slice Prioritization'],
         'properties': {
             'Smoothing': {
                 'type': 'integer',
                 'default': 1,
                 'minimum': 1,
                 'maximum': 20,
-                'description': 'How much convolution to apply to to projections. More smoothing results in softer cuts.'
+                'description': 'How much convolution to apply to projections. More smoothing results in softer cuts.'
             },
             'Minimum Glyph Size': {
                 'type': 'integer',
-                'default': 20,
+                'default': 0,
                 'minimum': 0,
-                'maximum': 1000,
+                'maximum': 9999999,
                 'description': 'Discard post-splitting glyphs with an x or y dimension less than the Minimum Glyph Size.'
             },
             'Maximum Recursive Cuts': {
@@ -41,7 +41,7 @@ class DiagonalNeumeSlicing(RodanTask):
                 'default': 10,
                 'minimum': 1,
                 'maximum': 100,
-                'description': 'How many subcuts are allowed on a glyph. Note that this does not equate to the number of cuts, as if no ideal cuts can be found, the image in returned unprocessed.'
+                'description': 'How many subcuts are allowed on a glyph. Note that this does not equate to the number of cuts, as if no ideal cuts can be found, the image is returned unprocessed.'
             },
             'Angle': {
                 'type': 'integer',
@@ -71,10 +71,10 @@ class DiagonalNeumeSlicing(RodanTask):
                 'maximum': 9999999,
                 'description': 'The minimum number of projection values a segment must have. Lower values will allow slice points to be closer together.'
             },
-            'Prioritize X-slices': {
-                'type': 'boolean',
-                'default': True,
-                'description': 'Cuts all X-slices before Y-slices. This tends to give better results as neumes mostly extend horizontally.'
+            'Slice Prioritization': {
+                'enum': ['None', 'Horizontal', 'Vertical', 'Multi-Cut'],
+                'default': 'Vertical',
+                'description': 'Prioritize cuts in one dimension over cuts in the other, or picks the overall best slice from both. Horizontal tends to give better results as neumes mostly extend horizontally.'
             },
         },
     }
@@ -113,8 +113,14 @@ class DiagonalNeumeSlicing(RodanTask):
             'low_projection_threshold': settings['Low Valley Threshold'],   # FORCE a cut if valley under a certain value
             'min_projection_segments': settings['Minimum Segment Length'],  # ++ less likely to cut, -- more slice points
 
-            'prefer_multi_cuts': False,
-            'prefer_x': settings['Prioritize X-slices'],
+            # Cut prioritizing
+            'slice_prioritization': settings['Slice Prioritization'],
+            'prefer_multi_cuts': True if settings['Slice Prioritization'] == 'Multi-Cut' else False,
+            'prefer_x': True if settings['Slice Prioritization'] == 'Horizontal' else False,
+            'prefer_y': True if settings['Slice Prioritization'] == 'Vertical' else False,
+
+            # Try rotated AND non-rotated projections
+            'check_axis': False,
 
             # Debug Options
             'print_projection_array': False,
